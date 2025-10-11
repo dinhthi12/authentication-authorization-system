@@ -1,12 +1,10 @@
-import express, { Request, Response } from 'express'
+import app from './app'
+import { config } from './config'
 
-const app = express()
-const port = process.env.PORT || 3000
+async function startServer() {
+  app.listen(config.app.port, () => {
+    console.log(`🚀 Server running at http://localhost:${config.app.port}`)
+  })
+}
 
-app.get('/', (req: Request, res: Response) => {
-  res.send('Hello from Express with TypeScript!')
-})
-
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`)
-})
+startServer()
