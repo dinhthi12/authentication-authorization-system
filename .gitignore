@@ -369,3 +369,5 @@ nbactions.xml
 ### Sass ###
 .sass-cache/
 *.css.map
+
+.env
