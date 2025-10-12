@@ -1,8 +1,8 @@
 import { config } from '../../config'
-import prisma from '../../db/prisma'
 import { hashPassword } from '../../utils/hash'
 import { generateAccessToken, generateRefreshToken } from '../../utils/jwt'
-import { authRepository } from './auth.Repository';
+import { userRepository } from '../user/user.repository'
+import { authRepository } from './auth.repository'
 
 export class AuthService {
   /**
@@ -10,7 +10,7 @@ export class AuthService {
    * @param
    * @return
    */
-  async register(email: string, password: string, name?: string ) {
+  async register(email: string, password: string, name?: string) {
     // check user exist
     const existingUser = await authRepository.findUserByEmail(email)
 
@@ -46,6 +46,30 @@ export class AuthService {
     } catch (error) {
       throw new Error('Invalid refresh token' + error)
     }
+  }
+
+  async loginWithGoogle(profile: any) {
+    const email = profile.emails?.[0]?.value
+    const name = profile.displayName
+
+    let user = await userRepository.findByEmail(email)
+    if (!user) {
+      user = await userRepository.create({
+        email,
+        name,
+        provider: 'google',
+        providerId: profile.id
+      })
+    }
+
+    const accessToken = generateAccessToken({ userId: user.id, email: user.email })
+    const refreshToken = generateRefreshToken({ userId: user.id })
+
+    return { user, accessToken, refreshToken }
+  }
+
+  async findUserById(id: string) {
+    return userRepository.findById(id)
   }
 }
 
