@@ -10,6 +10,7 @@ if (!ACCESS_SECRET || !REFRESH_SECRET) {
 
 /**
  * Generate Access Token
+ *
  * @param payload Data to encode in JWT (e.g. { userId })
  * @returns Signed JWT string
  */
@@ -19,6 +20,7 @@ export const generateAccessToken = (payload: object) => {
 
 /**
  * Generate Refresh Token
+ *
  * @param payload Data to encode in JWT
  * @returns Signed JWT string
  */
@@ -28,6 +30,7 @@ export const generateRefreshToken = (payload: object) => {
 
 /**
  * Verify Access Token
+ *
  * @param token JWT string
  * @returns Decoded payload if valid
  */
@@ -41,6 +44,7 @@ export const verifyAccessToken = (token: string) => {
 
 /**
  * Verify Refresh Token
+ *
  * @param token JWT string
  * @returns Decoded payload if valid
  */
