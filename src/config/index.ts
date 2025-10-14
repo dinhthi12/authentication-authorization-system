@@ -35,5 +35,8 @@ export const config = {
   oauth: {
     googleClientId: process.env.GOOGLE_CLIENT_ID,
     googleClientSecret: process.env.GOOGLE_CLIENT_SECRET
+  },
+  callbackURL: {
+    url: process.env.CALLBACK_URL
   }
 }
