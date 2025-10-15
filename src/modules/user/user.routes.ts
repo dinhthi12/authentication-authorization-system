@@ -1,10 +1,9 @@
 import { Router } from 'express'
 import { userController } from './user.controller'
-import { authenticateJWT } from '../../middleware/auth.middleware'
+import { verifyToken } from '../../middleware/auth.middleware'
 
 const router = Router()
 
-router.get('/me', authenticateJWT, userController.getMe.bind(userController))
-
+router.get('/me', verifyToken, userController.getMe.bind(userController))
 
 export default router

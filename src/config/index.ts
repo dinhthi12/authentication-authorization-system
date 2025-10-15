@@ -8,7 +8,9 @@ const requiredEnvVars = [
   'JWT_REFRESH_SECRET',
   'ACCESS_TOKEN_EXPIRES_IN',
   'REFRESH_TOKEN_EXPIRES_IN',
-  'PORT'
+  'PORT',
+  'CALLBACK_URL',
+  'CLIENT_URL'
 ]
 
 for (const key of requiredEnvVars) {
@@ -36,7 +38,8 @@ export const config = {
     googleClientId: process.env.GOOGLE_CLIENT_ID,
     googleClientSecret: process.env.GOOGLE_CLIENT_SECRET
   },
-  callbackURL: {
-    url: process.env.CALLBACK_URL
+  url: {
+    callBackUrl: process.env.CALLBACK_URL,
+    clientUrl: process.env.CLIENT_URL
   }
 }

@@ -8,24 +8,18 @@ passport.use(
     {
       clientID: config.oauth.googleClientId!,
       clientSecret: config.oauth.googleClientSecret!,
-      callbackURL: 'http://localhost:4000/api/v1/auth/google/callback',
+      callbackURL: 'http://localhost:4000/api/v1/auth/google/callback'
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
-         const { user, accessToken: jwtToken, refreshToken: jwtRefresh } =
-          await authService.loginWithGoogle(profile)
-        return done(null, {...user, accessToken: jwtToken, refreshToken: jwtRefresh })
+        const { user, accessToken: jwtToken, refreshToken: jwtRefresh } = await authService.loginWithGoogle(profile)
+        return done(null, { ...user, accessToken: jwtToken, refreshToken: jwtRefresh })
       } catch (error) {
+        console.error('Google OAuth Error:', error)
         return done(error, undefined)
       }
     }
   )
 )
-
-passport.serializeUser((user: any, done) => done(null, user.id))
-passport.deserializeUser(async (id: string, done) => {
-  const user = await authService.findUserById(id)
-  done(null, user)
-})
 
 export default passport
