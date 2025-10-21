@@ -14,7 +14,7 @@ if (!ACCESS_SECRET || !REFRESH_SECRET) {
  * @param payload Data to encode in JWT (e.g. { userId })
  * @returns Signed JWT string
  */
-export const generateAccessToken = (payload: object) => {
+export const generateAccessToken = (payload: any) => {
   return jwt.sign(payload, config.jwt.accessSecret, { expiresIn: config.jwt.accessExpire } as SignOptions) // access token expires after 15 minutes
 }
 
@@ -24,8 +24,8 @@ export const generateAccessToken = (payload: object) => {
  * @param payload Data to encode in JWT
  * @returns Signed JWT string
  */
-export const generateRefreshToken = (payload: object) => {
-  return jwt.sign(payload, config.jwt.refreshSecret, { expiresIn: config.jwt.refreshExpire } as SignOptions) // refresh token expires after 7 days
+export const generateRefreshToken = (payload: any, jti: string) => {
+  return jwt.sign({...payload, jti}, config.jwt.refreshSecret, { expiresIn: config.jwt.refreshExpire } as SignOptions) // refresh token expires after 7 days
 }
 
 /**

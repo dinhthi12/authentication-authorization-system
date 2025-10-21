@@ -1,51 +1,37 @@
 import jwt from 'jsonwebtoken'
-import { config } from '../config'
-import { authService } from '../modules/auth/auth.service'
 import { Request, Response, NextFunction } from 'express'
+import { config } from '../config'
 import { logMiddleware } from '../utils/logger'
+import { revokedToken } from '../modules/revokedToken'
 
-export const verifyToken = async (req: Request, res: Response, next: NextFunction) => {
-  const token = req.cookies.token || req.headers['authorization']?.split(' ')[1]
+export async function verifyToken(req: Request, res: Response, next: NextFunction) {
+  const token = req.cookies?.token || req.cookies?.accessToken || req.headers.authorization?.split(' ')[1]
 
-  const refreshToken = req.cookies.refreshToken
+  if (!token) {
+    return res.status(401).json({ message: 'Missing token' })
+  }
 
-  logMiddleware('TOKEN', token)
+  const isRevoked = await revokedToken.exists(token)
+  if (isRevoked) {
+    logMiddleware('❌ Token revoked')
+    return res.status(401).json({ success: false, message: 'Token revoked' })
+  }
 
   try {
-    const decoded = jwt.verify(token, config.jwt.accessSecret)
-    ;(req as any).userId = (decoded as any).userId
-    next()
-  } catch (error: any) {
-    // ❗ Nếu access token hết hạn, tự dùng refresh token để cấp mới
-    if (error.name === 'TokenExpiredError' && refreshToken) {
-      try {
-        const { accessToken, newRefreshToken } = await authService.refresh(refreshToken)
+    const decoded = jwt.verify(token, config.jwt.accessSecret!) as any
 
-        res.cookie('accessToken', accessToken, {
-          httpOnly: true,
-          secure: false,
-          sameSite: 'lax',
-          maxAge: 15 * 60 * 1000
-        })
-
-        if (newRefreshToken) {
-          res.cookie('refreshToken', newRefreshToken, {
-            httpOnly: true,
-            secure: false,
-            sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000
-          })
-        }
-
-        const decoded = jwt.verify(accessToken, config.jwt.accessSecret)
-        ;(req as any).userId = (decoded as any).userId
-        return next()
-      } catch {
-        return res.status(403).json({ success: false, message: 'Invalid refresh token' })
-      }
+    if (!decoded?.userId) {
+      return res.status(401).json({ message: 'Invalid token payload' })
     }
 
-    return res.status(403).json({ success: false, message: 'Invalid or expired token' })
+    ;(req as any).user = {
+      id: decoded.userId,
+      email: decoded.email
+    }
+
+    next()
+  } catch (error: any) {
+    logMiddleware('❌ Token verification failed:', error.message)
+    return res.status(401).json({ message: 'Invalid or expired token' })
   }
 }
-
