@@ -1,9 +1,11 @@
 import { config } from '../../config'
 import { comparePassword, hashPassword } from '../../utils/hash'
 import { generateAccessToken, generateRefreshToken } from '../../utils/jwt'
+import { revokedToken } from '../revokedToken'
 import { userRepository } from '../user/user.repository'
 import { authRepository } from './auth.repository'
 import jwt from 'jsonwebtoken'
+import { v4 as uuidv4 } from 'uuid'
 
 export class AuthService {
   /**
@@ -22,7 +24,18 @@ export class AuthService {
     const user = await authRepository.createUser(email, hashedPassword, name ?? email)
 
     const accessToken = generateAccessToken({ userId: user.id, email: user.email })
-    const refreshToken = generateRefreshToken({ userId: user.id })
+
+    const jti = uuidv4()
+    const refreshToken = generateRefreshToken({ userId: user.id }, jti)
+    const decoded = jwt.decode(refreshToken) as any
+
+    await authRepository.saveRefreshToken({
+      userId: user.id,
+      token: refreshToken,
+      jti,
+      revoked: false,
+      expiresAt: new Date(decoded.exp * 1000)
+    })
 
     return { user, accessToken, refreshToken }
   }
@@ -37,7 +50,18 @@ export class AuthService {
     if (!isValid) throw new Error('Invalid password')
 
     const accessToken = generateAccessToken({ userId: user.id, email: user.email })
-    const refreshToken = generateRefreshToken({ userId: user.id })
+
+    const newJti = uuidv4()
+    const refreshToken = generateRefreshToken({ userId: user.id }, newJti)
+    const decoded = jwt.decode(refreshToken) as any
+
+    await authRepository.saveRefreshToken({
+      userId: user.id,
+      token: refreshToken,
+      jti: newJti,
+      revoked: false,
+      expiresAt: new Date(decoded.exp * 1000)
+    })
 
     return { user, accessToken, refreshToken }
   }
@@ -50,13 +74,23 @@ export class AuthService {
   async refresh(refreshToken: string) {
     try {
       const decoded = jwt.verify(refreshToken, config.jwt.refreshSecret!) as any
-
       const user = await authRepository.findUserById(decoded.userId)
-
       if (!user) throw new Error('User not found')
 
+      await revokedToken.add(refreshToken, decoded.exp)
+
       const newAccessToken = generateAccessToken({ userId: user.id, email: user.email })
-      const newRefreshToken = generateRefreshToken({ userId: user.id })
+
+      const jti = uuidv4()
+      const newRefreshToken = generateRefreshToken({ userId: user.id }, jti)
+
+      await authRepository.saveRefreshToken({
+        userId: user.id,
+        token: refreshToken,
+        jti: jti,
+        revoked: false,
+        expiresAt: new Date(decoded.exp * 1000)
+      })
 
       return { accessToken: newAccessToken, newRefreshToken }
     } catch (error) {
@@ -81,9 +115,48 @@ export class AuthService {
     }
 
     const accessToken = generateAccessToken({ userId: user.id, email: user.email })
-    const refreshToken = generateRefreshToken({ userId: user.id })
+
+    const jti = uuidv4()
+    const refreshToken = generateRefreshToken({ userId: user.id }, jti)
+    const decoded = jwt.decode(refreshToken) as any
+
+    await authRepository.saveRefreshToken({
+      userId: user.id,
+      token: refreshToken,
+      jti: jti,
+      revoked: false,
+      expiresAt: new Date(decoded.exp * 1000)
+    })
 
     return { user, accessToken, refreshToken }
+  }
+
+  async logout(accessToken?: string, refreshToken?: string) {
+    if (!accessToken && !refreshToken) {
+      throw new Error('No token provided')
+    }
+
+    if (accessToken) {
+      const decoded = jwt.decode(accessToken) as any
+      if (decoded?.exp) {
+        await revokedToken.add(accessToken, decoded.exp)
+      }
+    }
+
+    if (refreshToken) {
+      const decodedRefresh = jwt.decode(refreshToken) as any
+      const jti = decodedRefresh?.jti
+
+      if (jti) {
+        await authRepository.revokeRefreshToken(jti)
+      }
+
+      if (decodedRefresh?.exp) {
+        await revokedToken.add(refreshToken, decodedRefresh.exp)
+      }
+    }
+
+    return { success: true, message: 'Logged out successfully' }
   }
 
   async findUserById(id: string) {

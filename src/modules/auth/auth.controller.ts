@@ -1,12 +1,12 @@
 import { Request, Response } from 'express'
 import { authService } from './auth.service'
-import { logAuth } from '../../utils/logger'
 
 export class AuthController {
   async register(req: Request, res: Response) {
     try {
       const { email, password, name } = req.body
       const result = await authService.register(email, password, name)
+
       res.status(201).json({
         success: true,
         message: 'User registered',
@@ -24,9 +24,6 @@ export class AuthController {
     try {
       const { email, password } = req.body
       const { user, accessToken, refreshToken } = await authService.login(email, password)
-
-      logAuth('ACCESS TOKEN', accessToken)
-      logAuth('BODY', req.body)
 
       res.cookie('token', accessToken, {
         httpOnly: true,
@@ -55,7 +52,6 @@ export class AuthController {
 
       const { accessToken, newRefreshToken } = await authService.refresh(refreshToken)
 
-      // ✅ Cấp lại access token
       res.cookie('accessToken', accessToken, {
         httpOnly: true,
         secure: false,
@@ -63,7 +59,6 @@ export class AuthController {
         maxAge: 15 * 60 * 1000 // 15 phút
       })
 
-      // ✅ Nếu bạn muốn thay refreshToken cũ (để rotation token an toàn hơn)
       if (newRefreshToken) {
         res.cookie('refreshToken', newRefreshToken, {
           httpOnly: true,
@@ -106,6 +101,32 @@ export class AuthController {
         message: 'Google login falied',
         error: (error as Error).message
       })
+    }
+  }
+
+  async logout(req: Request, res: Response) {
+    try {
+      const token = req.cookies?.token || req.headers.authorization?.split(' ')[1]
+      const refreshToken = req.cookies?.refreshToken
+
+      const result = await authService.logout(token, refreshToken)
+
+      res.clearCookie('token', {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax'
+      })
+
+      res.clearCookie('refreshToken', {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax'
+      })
+
+      return res.json(result)
+    } catch (error) {
+      console.error('Logout error:', error)
+      return res.status(500).json({ success: false, message: 'Logout failed' })
     }
   }
 }
